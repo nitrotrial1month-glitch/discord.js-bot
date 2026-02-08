@@ -8,21 +8,24 @@ const client = new Client({
   ]
 });
 
+const prefix = "!";
+
 client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
+  if (!message.content.startsWith(prefix)) return;
 
-  const msg = message.content.toLowerCase();
+  const args = message.content.slice(prefix.length).trim().toLowerCase();
 
-  if (msg === "ping") {
-    message.reply("🏓 Pong!");
+  if (args === "hello") {
+    message.reply("👋 Hello! আমি prefix বট 😄");
   }
 
-  if (msg === "hello" || msg === "hi") {
-    message.reply("👋 Hello! আমি অনলাইনে আছি 😄");
+  if (args === "ping") {
+    message.reply("🏓 Pong!");
   }
 });
 
