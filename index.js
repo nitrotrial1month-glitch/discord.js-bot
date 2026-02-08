@@ -9,18 +9,20 @@ const client = new Client({
 });
 
 client.once("ready", () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
 
-  if (message.content.toLowerCase() === "ping") {
+  const msg = message.content.toLowerCase();
+
+  if (msg === "ping") {
     message.reply("🏓 Pong!");
   }
 
-  if (message.content.toLowerCase() === "hello") {
-    message.reply("👋 Hello! কেমন আছো?");
+  if (msg === "hello" || msg === "hi") {
+    message.reply("👋 Hello! আমি অনলাইনে আছি 😄");
   }
 });
 
