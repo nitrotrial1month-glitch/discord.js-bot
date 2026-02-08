@@ -8,15 +8,19 @@ const client = new Client({
   ]
 });
 
-client.once('clientReady', () => {
+client.once("ready", () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
 client.on("messageCreate", (message) => {
   if (message.author.bot) return;
 
-  if (message.content === "ping") {
+  if (message.content.toLowerCase() === "ping") {
     message.reply("🏓 Pong!");
+  }
+
+  if (message.content.toLowerCase() === "hello") {
+    message.reply("👋 Hello! কেমন আছো?");
   }
 });
 
