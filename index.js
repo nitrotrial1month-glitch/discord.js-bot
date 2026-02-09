@@ -1,4 +1,13 @@
-const { Client, GatewayIntentBits } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  PermissionFlagsBits,
+  ChannelType,
+  EmbedBuilder
+} = require("discord.js");
 
 const client = new Client({
   intents: [
@@ -9,52 +18,134 @@ const client = new Client({
 });
 
 const prefix = "!";
-const dailyCooldown = new Map();
 
 client.once("ready", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
+/* =======================
+   TICKET PANEL COMMAND
+======================= */
 client.on("messageCreate", async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith(prefix)) return;
 
-  const cmd = message.content
-    .slice(prefix.length)
-    .trim()
-    .toLowerCase();
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
+  const cmd = args.shift()?.toLowerCase();
 
-  // 👋 HELLO
-  if (cmd === "hello") {
-    return message.reply("👋 Hewwooo! owo");
+  if (cmd !== "ticketpanel") return;
+
+  if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+    return message.reply("❌ Only admins can use this.");
   }
 
-  // 🏓 PING
-  if (cmd === "ping") {
-    return message.reply("🏓 Pong!");
-  }
+  const categoryId = args[0] || "none";
+  const roleId = args[1] || "none";
 
-  // 🎁 DAILY
-  if (cmd === "daily") {
-    const userId = message.author.id;
-    const now = Date.now();
-    const cooldown = 24 * 60 * 60 * 1000;
+  const embed = new EmbedBuilder()
+    .setTitle("🎫 Support Ticket")
+    .setDescription("Click the button below to open a ticket.")
+    .setColor("Green");
 
-    if (dailyCooldown.has(userId)) {
-      const last = dailyCooldown.get(userId);
-      const remaining = cooldown - (now - last);
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`ticket_${categoryId}_${roleId}`)
+      .setLabel("🎟️ Open Ticket")
+      .setStyle(ButtonStyle.Primary)
+  );
 
-      if (remaining > 0) {
-        const h = Math.floor(remaining / 3600000);
-        const m = Math.floor((remaining % 3600000) / 60000);
-        return message.reply(`⏳ owo slowww~ come back in **${h}h ${m}m**`);
-      }
+  message.channel.send({ embeds: [embed], components: [row] });
+});
+
+/* =======================
+   BUTTON HANDLER
+======================= */
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+
+  if (interaction.customId.startsWith("ticket_")) {
+    const data = interaction.customId.split("_");
+    const categoryId = data[1] !== "none" ? data[1] : null;
+    const roleId = data[2] !== "none" ? data[2] : null;
+
+    const exists = interaction.guild.channels.cache.find(
+      (c) => c.name === `ticket-${interaction.user.id}`
+    );
+
+    if (exists) {
+      return interaction.reply({
+        content: "❗ You already have a ticket.",
+        ephemeral: true
+      });
     }
 
-    const reward = Math.floor(Math.random() * 500) + 200;
-    dailyCooldown.set(userId, now);
+    const perms = [
+      {
+        id: interaction.guild.id,
+        deny: [PermissionFlagsBits.ViewChannel]
+      },
+      {
+        id: interaction.user.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages
+        ]
+      }
+    ];
 
-    return message.reply(`🎉 owo! you got **${reward} coins** 💰`);
+    if (roleId) {
+      perms.push({
+        id: roleId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages
+        ]
+      });
+    }
+
+    const channel = await interaction.guild.channels.create({
+      name: `ticket-${interaction.user.id}`,
+      type: ChannelType.GuildText,
+      parent: categoryId,
+      permissionOverwrites: perms
+    });
+
+    const closeRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("close_ticket")
+        .setLabel("🔒 Close")
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    channel.send({
+      content: `<@${interaction.user.id}>`,
+      embeds: [
+        new EmbedBuilder()
+          .setTitle("🎫 Ticket Opened")
+          .setDescription("Describe your issue here.")
+          .setColor("Blue")
+      ],
+      components: [closeRow]
+    });
+
+    interaction.reply({
+      content: `✅ Ticket created: ${channel}`,
+      ephemeral: true
+    });
+  }
+
+  if (interaction.customId === "close_ticket") {
+    if (
+      !interaction.member.permissions.has(PermissionFlagsBits.Administrator)
+    ) {
+      return interaction.reply({
+        content: "❌ Only admins can close tickets.",
+        ephemeral: true
+      });
+    }
+
+    await interaction.channel.send("🔒 Closing ticket in 5 seconds...");
+    setTimeout(() => interaction.channel.delete(), 5000);
   }
 });
 
