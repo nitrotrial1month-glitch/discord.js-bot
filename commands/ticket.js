@@ -1,34 +1,32 @@
-import { 
-  SlashCommandBuilder, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle 
+import {
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  PermissionsBitField
 } from "discord.js";
 
-export const data = new SlashCommandBuilder()
-  .setName("ticket")
-  .setDescription("🎟️ Open ticket panel")
-  .addStringOption(option =>
-    option
-      .setName("message")
-      .setDescription("Custom ticket panel message")
-      .setRequired(false)
-  );
+export default {
+  data: new SlashCommandBuilder()
+    .setName("ticket")
+    .setDescription("Open support ticket panel"),
 
-export async function execute(interaction) {
-  const panelMessage =
-    interaction.options.getString("message") ||
-    "🎟️ **Support Ticket Panel**\n\nClick the button below to open a ticket.";
+  async execute(interaction) {
+    const button = new ButtonBuilder()
+      .setCustomId("open_ticket")
+      .setLabel("🎫 Open Ticket")
+      .setStyle(ButtonStyle.Primary);
 
-  const button = new ButtonBuilder()
-    .setCustomId("open_ticket")
-    .setLabel("🎫 Open Ticket")
-    .setStyle(ButtonStyle.Primary);
+    const row = new ActionRowBuilder().addComponents(button);
 
-  const row = new ActionRowBuilder().addComponents(button);
-
-  await interaction.reply({
-    content: panelMessage,
-    components: [row]
-  });
-}
+    await interaction.reply({
+      embeds: [{
+        title: "🎫 Support Ticket Panel",
+        description: "Click the button below to open a ticket",
+        color: 0x5865F2
+      }],
+      components: [row]
+    });
+  }
+};
