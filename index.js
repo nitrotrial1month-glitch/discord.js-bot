@@ -1,47 +1,66 @@
-const { 
+import { 
   Client, 
-  GatewayIntentBits, 
   Collection, 
-  Events 
-} = require("discord.js");
-const fs = require("fs");
+  GatewayIntentBits, 
+  InteractionType 
+} from "discord.js";
+import fs from "fs";
 
+// Client create
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.Guilds
   ]
 });
 
+// Command collection
 client.commands = new Collection();
 
-// command loader
-const commandFiles = fs.readdirSync("./commands").filter(f => f.endsWith(".js"));
+// Load commands
+const commandFiles = fs
+  .readdirSync("./commands")
+  .filter(file => file.endsWith(".js"));
+
 for (const file of commandFiles) {
-  const command = require(`./commands/${file}`);
+  const command = await import(`./commands/${file}`);
   client.commands.set(command.data.name, command);
 }
 
-client.once(Events.ClientReady, async () => {
+// Ready event + Slash register
+client.once("ready", async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 
   await client.application.commands.set(
     [...client.commands.values()].map(cmd => cmd.data)
   );
+
+  console.log("✅ Slash commands registered");
 });
 
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+// Interaction handler
+client.on("interactionCreate", async (interaction) => {
+  if (interaction.type !== InteractionType.ApplicationCommand) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
 
   try {
     await command.execute(interaction);
-  } catch (e) {
-    console.error(e);
-    interaction.reply({ content: "❌ Error", ephemeral: true });
+  } catch (err) {
+    console.error(err);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({ 
+        content: "❌ Something went wrong!", 
+        ephemeral: true 
+      });
+    } else {
+      await interaction.reply({ 
+        content: "❌ Something went wrong!", 
+        ephemeral: true 
+      });
+    }
   }
 });
 
+// Login
 client.login(process.env.TOKEN);
