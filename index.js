@@ -43,9 +43,3 @@ client.on("messageCreate", message => {
 });
 
 client.login(process.env.TOKEN);
-module.exports = {
-  name: "ping",
-  execute(message) {
-    message.reply("🏓 Pong!");
-  }
-};
