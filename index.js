@@ -33,7 +33,7 @@ client.on("messageCreate", async (message) => {
   const args = message.content.slice(prefix.length).trim().split(/ +/);
   const cmd = args.shift()?.toLowerCase();
 
-  if (cmd !== "ticketpanel") return;
+  if (cmd !== "ticket") return;
 
   if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return message.reply("❌ Only admins can use this.");
