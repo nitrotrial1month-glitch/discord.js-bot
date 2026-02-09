@@ -1,66 +1,45 @@
-import { 
-  Client, 
-  Collection, 
-  GatewayIntentBits, 
-  InteractionType 
-} from "discord.js";
-import fs from "fs";
+const { Client, GatewayIntentBits, Collection } = require("discord.js");
 
-// Client create
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ]
 });
 
-// Command collection
+const prefix = "!";
 client.commands = new Collection();
 
 // Load commands
-const commandFiles = fs
-  .readdirSync("./commands")
-  .filter(file => file.endsWith(".js"));
+const fs = require("fs");
+const commandFiles = fs.readdirSync("./commands").filter(f => f.endsWith(".js"));
 
 for (const file of commandFiles) {
-  const command = await import(`./commands/${file}`);
-  client.commands.set(command.data.name, command);
+  const command = require(`./commands/${file}`);
+  client.commands.set(command.name, command);
 }
 
-// Ready event + Slash register
-client.once("ready", async () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-
-  await client.application.commands.set(
-    [...client.commands.values()].map(cmd => cmd.data)
-  );
-
-  console.log("✅ Slash commands registered");
+client.once("ready", () => {
+  console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
-// Interaction handler
-client.on("interactionCreate", async (interaction) => {
-  if (interaction.type !== InteractionType.ApplicationCommand) return;
+client.on("messageCreate", message => {
+  if (message.author.bot) return;
+  if (!message.content.startsWith(prefix)) return;
 
-  const command = client.commands.get(interaction.commandName);
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
+  const cmdName = args.shift().toLowerCase();
+
+  const command = client.commands.get(cmdName);
   if (!command) return;
 
   try {
-    await command.execute(interaction);
+    command.execute(message, args);
   } catch (err) {
     console.error(err);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ 
-        content: "❌ Something went wrong!", 
-        ephemeral: true 
-      });
-    } else {
-      await interaction.reply({ 
-        content: "❌ Something went wrong!", 
-        ephemeral: true 
-      });
-    }
+    message.reply("❌ Error happened");
   }
 });
 
-// Login
 client.login(process.env.TOKEN);
