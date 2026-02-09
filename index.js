@@ -1,47 +1,45 @@
-import { Client, Collection, GatewayIntentBits, REST, Routes } from "discord.js";
+import { 
+  Client, 
+  Collection, 
+  GatewayIntentBits, 
+  InteractionType 
+} from "discord.js";
 import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+// Client create
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds
+  ]
 });
 
+// Command collection
 client.commands = new Collection();
 
-// load commands
-const commandsPath = path.join(__dirname, "commands");
-const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"));
-
-const slashData = [];
+// Load commands
+const commandFiles = fs
+  .readdirSync("./commands")
+  .filter(file => file.endsWith(".js"));
 
 for (const file of commandFiles) {
   const command = await import(`./commands/${file}`);
-  client.commands.set(command.default.data.name, command.default);
-  slashData.push(command.default.data.toJSON());
+  client.commands.set(command.data.name, command);
 }
 
-// register slash commands
-const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+// Ready event + Slash register
+client.once("ready", async () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
 
-(async () => {
-  try {
-    console.log("Refreshing slash commands...");
-    await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
-      { body: slashData }
-    );
-    console.log("Slash commands registered.");
-  } catch (err) {
-    console.error(err);
-  }
-})();
+  await client.application.commands.set(
+    [...client.commands.values()].map(cmd => cmd.data)
+  );
 
-client.on("interactionCreate", async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  console.log("✅ Slash commands registered");
+});
+
+// Interaction handler
+client.on("interactionCreate", async (interaction) => {
+  if (interaction.type !== InteractionType.ApplicationCommand) return;
 
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
@@ -50,8 +48,19 @@ client.on("interactionCreate", async interaction => {
     await command.execute(interaction);
   } catch (err) {
     console.error(err);
-    await interaction.reply({ content: "❌ Error", ephemeral: true });
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({ 
+        content: "❌ Something went wrong!", 
+        ephemeral: true 
+      });
+    } else {
+      await interaction.reply({ 
+        content: "❌ Something went wrong!", 
+        ephemeral: true 
+      });
+    }
   }
 });
 
+// Login
 client.login(process.env.TOKEN);
