@@ -150,3 +150,88 @@ client.on("interactionCreate", async (interaction) => {
 });
 
 client.login(process.env.TOKEN);
+
+const { REST, Routes, SlashCommandBuilder } = require("discord.js");
+
+const commands = [
+  new SlashCommandBuilder()
+    .setName("ticket")
+    .setDescription("Ticket system")
+    .addSubcommand(sub =>
+      sub
+        .setName("panel")
+        .setDescription("Create ticket panel")
+        .addStringOption(o =>
+          o.setName("title").setDescription("Panel title").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("description").setDescription("Panel description").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("button_text").setDescription("Button text").setRequired(true)
+        )
+        .addStringOption(o =>
+          o.setName("color")
+            .setDescription("Embed color")
+            .setRequired(true)
+            .addChoices(
+              { name: "Green", value: "Green" },
+              { name: "Blue", value: "Blue" },
+              { name: "Red", value: "Red" },
+              { name: "Yellow", value: "Yellow" }
+            )
+        )
+        .addChannelOption(o =>
+          o.setName("category")
+            .setDescription("Ticket category")
+            .setRequired(false)
+        )
+        .addRoleOption(o =>
+          o.setName("support_role")
+            .setDescription("Support role")
+            .setRequired(false)
+        )
+    )
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+(async () => {
+  await rest.put(
+    Routes.applicationCommands(process.env.CLIENT_ID),
+    { body: commands }
+  );
+  console.log("✅ Slash commands registered");
+})();
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName !== "ticket") return;
+
+  if (interaction.options.getSubcommand() === "panel") {
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
+    }
+
+    const title = interaction.options.getString("title");
+    const desc = interaction.options.getString("description");
+    const btn = interaction.options.getString("button_text");
+    const color = interaction.options.getString("color");
+    const category = interaction.options.getChannel("category");
+    const role = interaction.options.getRole("support_role");
+
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setDescription(desc)
+      .setColor(color);
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`ticket_${category?.id || "none"}_${role?.id || "none"}`)
+        .setLabel(btn)
+        .setStyle(ButtonStyle.Primary)
+    );
+
+    await interaction.channel.send({ embeds: [embed], components: [row] });
+    await interaction.reply({ content: "✅ Ticket panel created", ephemeral: true });
+  }
+});
