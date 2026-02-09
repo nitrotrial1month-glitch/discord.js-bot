@@ -1,87 +1,34 @@
-const {
-  SlashCommandBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  PermissionFlagsBits,
-  ChannelType
-} = require("discord.js");
+import { 
+  SlashCommandBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle 
+} from "discord.js";
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("ticket")
-    .setDescription("Ticket system")
-    .addSubcommand(sub =>
-      sub
-        .setName("panel")
-        .setDescription("Send ticket panel")
-        .addStringOption(o =>
-          o.setName("message")
-            .setDescription("Panel message")
-            .setRequired(true)
-        )
-        .addChannelOption(o =>
-          o.setName("category")
-            .setDescription("Ticket category (optional)")
-            .addChannelTypes(ChannelType.GuildCategory)
-            .setRequired(false)
-        )
-        .addRoleOption(o =>
-          o.setName("support_role")
-            .setDescription("Support role (optional)")
-            .setRequired(false)
-        )
-    ),
+export const data = new SlashCommandBuilder()
+  .setName("ticket")
+  .setDescription("🎟️ Open ticket panel")
+  .addStringOption(option =>
+    option
+      .setName("message")
+      .setDescription("Custom ticket panel message")
+      .setRequired(false)
+  );
 
-  async execute(interaction) {
-    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return interaction.reply({ content: "❌ Admin only", ephemeral: true });
-    }
+export async function execute(interaction) {
+  const panelMessage =
+    interaction.options.getString("message") ||
+    "🎟️ **Support Ticket Panel**\n\nClick the button below to open a ticket.";
 
-    const message = interaction.options.getString("message");
-    const category = interaction.options.getChannel("category");
-    const supportRole = interaction.options.getRole("support_role");
+  const button = new ButtonBuilder()
+    .setCustomId("open_ticket")
+    .setLabel("🎫 Open Ticket")
+    .setStyle(ButtonStyle.Primary);
 
-    const button = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("create_ticket")
-        .setLabel("🎫 Open Ticket")
-        .setStyle(ButtonStyle.Primary)
-    );
+  const row = new ActionRowBuilder().addComponents(button);
 
-    await interaction.reply({
-      content: message,
-      components: [button]
-    });
-
-    interaction.client.on("interactionCreate", async i => {
-      if (!i.isButton()) return;
-      if (i.customId !== "create_ticket") return;
-
-      const channel = await i.guild.channels.create({
-        name: `ticket-${i.user.username}`,
-        type: ChannelType.GuildText,
-        parent: category?.id || null,
-        permissionOverwrites: [
-          {
-            id: i.guild.id,
-            deny: ["ViewChannel"]
-          },
-          {
-            id: i.user.id,
-            allow: ["ViewChannel", "SendMessages"]
-          },
-          ...(supportRole
-            ? [{
-                id: supportRole.id,
-                allow: ["ViewChannel", "SendMessages"]
-              }]
-            : [])
-        ]
-      });
-
-      await channel.send(`🎫 Ticket opened by ${i.user}`);
-      await i.reply({ content: "✅ Ticket created!", ephemeral: true });
-    });
-  }
-};
+  await interaction.reply({
+    content: panelMessage,
+    components: [row]
+  });
+}
